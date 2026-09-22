@@ -1,5 +1,5 @@
 import { GeoJsonLayer } from "deck.gl";
-import { hexToRgb, testHex } from "../../../../utils/utils";
+import { hexToRgb, testHex, easeOutBack } from "../../../../utils/utils";
 
 /**
  * Description. uses deck api to
@@ -68,6 +68,11 @@ export const processGridData = (cityIOdata) => {
 // read as deeper and sit better on the dark map. The data is not modified.
 const TONE = 0.9;
 
+// converts a cell's raw `height` value into world elevation. Exported so
+// CellChangeLayer's rising/sinking ring can compute the same world height
+// GridLayer itself renders, and the two stay visually in sync
+export const GRID_ELEVATION_SCALE = 5;
+
 export default function GridLayer({
   data,
   editOn,
@@ -96,7 +101,7 @@ export default function GridLayer({
     // faces fight for depth (flicker when the camera moves)
     parameters: { cull: true },
     //!  fixed  elevation for now
-    elevationScale: 5,
+    elevationScale: GRID_ELEVATION_SCALE,
     lineWidthScale: 1,
     lineWidthMinPixels: 1.5,
     // dark, solid edges
@@ -159,8 +164,11 @@ export default function GridLayer({
       getElevation: selectedCellsState,
     },
     transitions: {
-      getFillColor: 500,
-      getElevation: 150,
+      // quick fade to the new type's color
+      getFillColor: 260,
+      // slower grow/sink with a slight overshoot, so placing or removing a
+      // piece reads as the cell settling into place rather than snapping
+      getElevation: { duration: 550, easing: easeOutBack },
     },
   });
 }

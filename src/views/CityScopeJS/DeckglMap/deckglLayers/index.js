@@ -2,6 +2,7 @@ export { default as AccessLayer } from "./AccessLayer";
 export { default as AggregatedTripsLayer } from "./AggregatedTripsLayer";
 export { default as ABMLayer } from "./ABMLayer";
 export { default as GridLayer } from "./GridLayer";
+export { default as CellChangeLayer } from "./CellChangeLayer";
 export { default as TextualLayer } from "./TextualLayer";
 export { default as GeojsonLayer } from "./GeojsonLayer";
 export { default as TileMapLayer } from "./TileMapLayer";

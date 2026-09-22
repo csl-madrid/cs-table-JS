@@ -49,6 +49,28 @@ export const testHex = (hexString) => {
 };
 
 /**
+ * true when a GEOGRIDDATA cell has no piece on it. Mirrors the convention
+ * already used by AreaCalc: an empty cell has no name/type, or one of
+ * "none"/"None"/"" (some tables key the type under `name`, others under `type`)
+ */
+export const isEmptyCellType = (cellProps) => {
+  const label = cellProps?.name ?? cellProps?.type;
+  return !label || /^none$/i.test(label);
+};
+
+/**
+ * eases like a soft mechanical settle: overshoots slightly past the target
+ * value then springs back. Used for cells growing in or sinking away so the
+ * motion doesn't feel like an abrupt stop
+ * https://easings.net/#easeOutBack
+ */
+export const easeOutBack = (t) => {
+  const c1 = 1.70158;
+  const c3 = c1 + 1;
+  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+};
+
+/**
  * checks if edits are done (toggled off)
  * than returns a redux state
  * with grid edits payload

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
 import PaintBrush from "../../../Components/PaintBrush";
 import { LayerHoveredTooltip } from "../../../Components/LayerHoveredTooltip";
@@ -9,6 +9,7 @@ import {
   AggregatedTripsLayer,
   ABMLayer,
   GridLayer,
+  CellChangeLayer,
   TextualLayer,
   GeojsonLayer,
   TileMapLayer,
@@ -31,9 +32,40 @@ import {
   H3ClusterBaseLayer,
   H3HexagonBaseLayer,
 } from "./deckglLayers";
-import { processGridData } from "./deckglLayers/GridLayer";
+import { processGridData, GRID_ELEVATION_SCALE } from "./deckglLayers/GridLayer";
+import { RING_DURATION_MS } from "./deckglLayers/CellChangeLayer";
 import useWebSocket from "react-use-websocket";
 import { cityIOSettings } from "../../../settings/settings";
+import { isEmptyCellType } from "../../../utils/utils";
+
+// treat a GEOGRIDDATA update as a bulk change (loading a table, restoring a
+// scenario...) rather than individual placed/removed pieces once more than
+// this many cells flip empty<->filled in the same update
+const BULK_CHANGE_RATIO = 0.3;
+
+// the ring's "tall" end overshoots the piece's own height by this much, so
+// it's never perfectly co-located with the (opaque) piece it's tracing -
+// otherwise the solid building hides the ring inside itself the whole time
+const RING_OVERSHOOT_RATIO = 0.4;
+const RING_MIN_OVERSHOOT = 18; // world units, for flat/short pieces
+// once the ring's own rise/sink transition finishes, it holds still at its
+// overshoot peak for this long before being removed - long enough to
+// actually register as "the ring poked out", not just a same-frame blip
+const RING_HOLD_MS = 650;
+
+// same accessor GridLayer uses for a cell's height, with a safe fallback so
+// a malformed/number-only height never turns into a NaN ring position
+const getPieceHeight = (cellProps) => {
+  const h = Array.isArray(cellProps?.height) ? cellProps.height[1] : 0;
+  return typeof h === "number" && !Number.isNaN(h) ? h : 0;
+};
+
+// world-space height the ring reaches: the piece's own height, plus a
+// margin so the ring's tall end always pokes out past the solid piece
+const ringPeakZ = (rawHeight) => {
+  const pieceZ = rawHeight * GRID_ELEVATION_SCALE;
+  return pieceZ + Math.max(pieceZ * RING_OVERSHOOT_RATIO, RING_MIN_OVERSHOOT);
+};
 
 export default function DeckGLMap() {
   // get cityio data from redux store
@@ -48,6 +80,12 @@ export default function DeckGLMap() {
   const [mouseDown, setMouseDown] = useState();
   const [hoveredObj, setHoveredObj] = useState();
   const [GEOGRIDDATA, setGEOGRIDDATA] = useState();
+  // short-lived flashes for cells that were just placed/removed on the table
+  const [flashEvents, setFlashEvents] = useState([]);
+  // previous raw GEOGRIDDATA, to diff against the incoming update
+  const prevGeogriddataRef = useRef(null);
+  // pending removal timers for flashEvents, keyed by event key
+  const flashTimersRef = useRef(new Map());
 
   // sets data from all hovered objected currently in the viewport
   const [layerHoveredData, setLayerHoveredData] = useState();
@@ -81,9 +119,97 @@ export default function DeckGLMap() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editModeToggle]);
 
-  // update the grid layer with every change to GEOGRIDDATA
+  // schedules a batch of new ring events: they render at their starting
+  // height, then their target height is set as a microtask (runs before
+  // the browser's next paint, unlike requestAnimationFrame - so the ring
+  // never gets painted a frame behind GridLayer's own elevation change),
+  // which the layer's own `transitions` animate smoothly; each is removed
+  // once its trip up or down completes
+  const addFlashEvents = (events) => {
+    if (!events.length) return;
+    setFlashEvents((prev) => [...prev, ...events]);
+    queueMicrotask(() => {
+      setFlashEvents((prev) =>
+        prev.map((e) =>
+          events.some((added) => added.key === e.key)
+            ? { ...e, phase: "out" }
+            : e
+        )
+      );
+    });
+    events.forEach((e) => {
+      const timer = setTimeout(() => {
+        setFlashEvents((prev) => prev.filter((x) => x.key !== e.key));
+        flashTimersRef.current.delete(e.key);
+        // the transition itself finishes at RING_DURATION_MS; RING_HOLD_MS
+        // keeps the ring visible at its overshoot peak a moment longer
+      }, RING_DURATION_MS + RING_HOLD_MS + 50);
+      flashTimersRef.current.set(e.key, timer);
+    });
+  };
+
+  // clear any pending ring-removal timers on unmount
   useEffect(() => {
-    setGEOGRIDDATA(processGridData(cityIOdata));
+    const timers = flashTimersRef.current;
+    return () => timers.forEach((t) => clearTimeout(t));
+  }, []);
+
+  // update the grid layer with every change to GEOGRIDDATA, and ring any
+  // cell that just got a piece placed on it or removed from it
+  useEffect(() => {
+    const newGrid = processGridData(cityIOdata);
+    setGEOGRIDDATA(newGrid);
+
+    const prevData = prevGeogriddataRef.current;
+    const newData = cityIOdata.GEOGRIDDATA;
+    if (
+      prevData &&
+      newData &&
+      prevData.length === newData.length &&
+      newGrid?.features
+    ) {
+      const changed = [];
+      for (let i = 0; i < newData.length; i++) {
+        const wasEmpty = isEmptyCellType(prevData[i]);
+        const isEmpty = isEmptyCellType(newData[i]);
+        if (wasEmpty !== isEmpty) changed.push(i);
+      }
+      // a lot of cells changing at once means a table load or a scenario
+      // restore, not someone placing/removing pieces: skip the rings
+      if (
+        changed.length &&
+        changed.length <= newData.length * BULK_CHANGE_RATIO
+      ) {
+        const now = Date.now();
+        const events = changed
+          .map((i) => {
+            const wasEmpty = isEmptyCellType(prevData[i]);
+            const geometry = newGrid.features[i]?.geometry;
+            if (!geometry) return null;
+            const sourceCell = wasEmpty ? newData[i] : prevData[i];
+            // placed: rises from the ground to just past the piece's
+            // height. removed: starts just past the piece's last height
+            // and sinks down
+            const startZ = wasEmpty
+              ? 0
+              : ringPeakZ(getPieceHeight(prevData[i]));
+            const endZ = wasEmpty
+              ? ringPeakZ(getPieceHeight(newData[i]))
+              : 0;
+            return {
+              key: `${i}-${now}`,
+              geometry,
+              color: sourceCell?.color,
+              startZ,
+              endZ,
+              phase: "in",
+            };
+          })
+          .filter(Boolean);
+        addFlashEvents(events);
+      }
+    }
+    prevGeogriddataRef.current = newData;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cityIOdata.GEOGRIDDATA]);
 
@@ -135,6 +261,8 @@ export default function DeckGLMap() {
       },
       deckGLRef: deckGLRef,
     }),
+
+    GRID_CHANGE_RING: CellChangeLayer({ events: flashEvents }),
 
     ACCESS: AccessLayer({
       setLayerHoveredData,
@@ -354,6 +482,9 @@ export default function DeckGLMap() {
         layersMenu[layerNameString + "_LAYER_CHECKBOX"].isOn
       ) {
         layers.push(layersKey[layerNameString]);
+        // flashes trace the same cells as the grid: only show them together
+        if (layerNameString === "GRID")
+          layers.push(layersKey["GRID_CHANGE_RING"]);
       }
     }
     if (cityIOdata.layers)

@@ -43,6 +43,32 @@ const createLightingEffect = (bearing) =>
     }),
   });
 
+// hides all text/icon labels (streets, places, POIs...) on "classic" Mapbox
+// styles (a style URL or a plain style object with a `layers` array). The
+// "standard" style (Night 3D) is handled separately, through its own config
+// (see MapStyleContext.js): its road/basemap layers live inside a style
+// "import" and are not reachable through getStyle().layers, and this
+// listener never even fires for it (Mapbox GL JS does not emit "styledata"
+// for that style definition)
+const hideMapLabels = (e) => {
+  const map = e.target;
+  let style;
+  try {
+    style = map.getStyle();
+  } catch {
+    // style not loaded yet: a later styledata event will retry
+    return;
+  }
+  (style?.layers || []).forEach((layer) => {
+    if (layer.type !== "symbol" || layer.layout?.visibility === "none") return;
+    try {
+      map.setLayoutProperty(layer.id, "visibility", "none");
+    } catch {
+      // layer not ready yet: a later styledata event will retry
+    }
+  });
+};
+
 // initial camera: a close, tilted view of the grid, seen from its left side.
 // The bearing is relative to the grid axes (360 - header.rotation); +90
 // orbits the camera a quarter turn to the left of that view
@@ -208,6 +234,7 @@ export default function DeckglBase({
       <Map
         mapStyle={mapStyle.style}
         mapboxAccessToken={process.env.REACT_APP_MAPBOX_TOKEN}
+        onStyleData={hideMapLabels}
       />
     </DeckGL>
   );

@@ -39,6 +39,9 @@ export const MAP_STYLES = [
     style: standardStyle({
       lightPreset: "night",
       showPointOfInterestLabels: false,
+      showRoadLabels: false,
+      showPlaceLabels: false,
+      showTransitLabels: false,
     }),
     preview: "linear-gradient(135deg, #0a1428 0%, #3d4f80 100%)",
   },
