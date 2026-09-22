@@ -1,7 +1,7 @@
 {
   "name": "cityscopejs",
   "repository": "https://github.com/CityScope/CS_cityscopeJS",
-  "homepage": "https://cityscope.media.mit.edu/CS_cityscopeJS",
+  "homepage": "/",
   "dependencies": {
     "@emotion/react": "^11.10.4",
     "@emotion/styled": "^11.10.4",

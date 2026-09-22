@@ -10,6 +10,11 @@ import { useEffect, useState } from "react";
 import { expectedLayers } from "../../../../settings/settings";
 import { updateLayersMenuState } from "../../../../redux/reducers/menuSlice";
 
+// initial slider values that differ from the defaults in settings.js
+const INITIAL_SLIDER_OVERRIDES = { GRID_LAYER_CHECKBOX: 80 };
+const initialSlider = (menuItem) =>
+  INITIAL_SLIDER_OVERRIDES[menuItem] ?? expectedLayers[menuItem].initSliderValue;
+
 function LayersMenu() {
   const dispatch = useDispatch();
   const cityIOdata = useSelector((state) => state.cityIOdataState.cityIOdata);
@@ -24,7 +29,7 @@ function LayersMenu() {
   const [sliderVal, setSliderVal] = useState(() => {
     const sv = {};
     for (const menuItem in expectedLayers) {
-      sv[menuItem] = expectedLayers[menuItem].initSliderValue;
+      sv[menuItem] = initialSlider(menuItem);
     }
     return sv;
   });
@@ -35,7 +40,7 @@ function LayersMenu() {
     for (const menuItem in expectedLayers) {
       initState[menuItem] = {
         isOn: expectedLayers[menuItem].initState,
-        slider: expectedLayers[menuItem].initSliderValue,
+        slider: initialSlider(menuItem),
       };
     }
     return initState;

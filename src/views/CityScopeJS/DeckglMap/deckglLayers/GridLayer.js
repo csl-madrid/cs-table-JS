@@ -64,6 +64,10 @@ export const processGridData = (cityIOdata) => {
   return newGEOGRID;
 };
 
+// display-only darkening of the cityIO colors (1 = original color), so they
+// read as deeper and sit better on the dark map. The data is not modified.
+const TONE = 0.9;
+
 export default function GridLayer({
   data,
   editOn,
@@ -77,19 +81,41 @@ export default function GridLayer({
   updaters: { setSelectedCellsState, setDraggingWhileEditing, setHoveredObj },
   deckGLRef,
 }) {
+  // the layer opacity slider (0-1) only affects the fill: the outlines
+  // stay solid, which is what a layer-wide `opacity` would not allow
+  const fillAlpha = Math.round(255 * (opacity ?? 1));
+
   return new GeoJsonLayer({
-    opacity,
+    opacity: 1,
     id: "GRID",
     data,
     pickable: true,
     extruded: true,
     wireframe: true,
+    // neighbour cells share walls: drawing back faces makes those coplanar
+    // faces fight for depth (flicker when the camera moves)
+    parameters: { cull: true },
     //!  fixed  elevation for now
     elevationScale: 5,
     lineWidthScale: 1,
-    lineWidthMinPixels: 2,
+    lineWidthMinPixels: 1.5,
+    // dark, solid edges
+    getLineColor: [20, 20, 20, 255],
+    // matte finish: a specular sheen washes the colors out
+    material: {
+      ambient: 0.6,
+      diffuse: 0.7,
+      shininess: 16,
+      specularColor: [20, 20, 20],
+    },
+    // highlight the cell under the cursor
+    autoHighlight: true,
+    highlightColor: [255, 255, 255, 70],
     getElevation: (d) => d.properties.height[1],
-    getFillColor: (d) => d.properties.color,
+    getFillColor: (d) => {
+      const [r, g, b] = d.properties.color;
+      return [r * TONE, g * TONE, b * TONE, fillAlpha];
+    },
 
     onClick: (event) => {
       if (selectedType && editOn && keyDownState !== "Shift")
@@ -129,7 +155,7 @@ export default function GridLayer({
       setDraggingWhileEditing(false);
     },
     updateTriggers: {
-      getFillColor: selectedCellsState,
+      getFillColor: [selectedCellsState, fillAlpha],
       getElevation: selectedCellsState,
     },
     transitions: {

@@ -18,7 +18,7 @@ export default function EditMenu() {
   };
 
   useEffect(() => {
-    // dispatch the edit menu state to the redux store
+    // dispatch the edit menu state to the redux storeº
     dispatch(updateEditMenuState(editMenu));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editMenu]);

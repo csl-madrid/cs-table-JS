@@ -27,7 +27,7 @@ export const PaintBrush = (props) => {
       <Box
         sx={{
           border: isInteractiveCell ? "3px solid" : "1px dashed",
-          borderRadius: "5%",
+          borderRadius: "6px",
           position: "fixed",
           backgroundColor:
             props.mouseDown && isInteractiveCell ? colorTrans : "rgba(0,0,0,0)",
@@ -45,18 +45,25 @@ export const PaintBrush = (props) => {
 
       <Box
         sx={{
-          borderRadius: "5%",
           position: "fixed",
           left: mouseX + divSize + 10,
           top: mouseY - 10,
           display: "flex",
           flexDirection: "column",
           m: 1,
-          p: 1,
+          px: 1.5,
+          py: 1,
           pointerEvents: "none",
           zIndex: 10,
           color: color,
-          backgroundColor: "rgba(0,0,0,0.8)",
+          // frosted glass, same look as the side panels
+          borderRadius: "12px",
+          border: "1px solid",
+          borderColor: "divider",
+          backgroundColor: "rgba(17,17,17,0.72)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+          boxShadow: "0 12px 32px rgba(0,0,0,0.45)",
         }}
       >
         <Typography variant="caption">

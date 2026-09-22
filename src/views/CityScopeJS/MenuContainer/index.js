@@ -1,86 +1,75 @@
-import { Grid, Box } from "@mui/material";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import BookmarksOutlinedIcon from "@mui/icons-material/BookmarksOutlined";
+import LayersOutlinedIcon from "@mui/icons-material/LayersOutlined";
+import ViewInArOutlinedIcon from "@mui/icons-material/ViewInArOutlined";
+import MapOutlinedIcon from "@mui/icons-material/MapOutlined";
 import TypesMenu from "./TypesMenu";
 import LayersMenu from "./LayersMenu";
 import ViewSettingsMenu from "./ViewSettingsMenu";
 import ScenariosMenu from "./ScenariosMenu";
-import ResizableDrawer from "../../../Components/ResizableDrawer";
+import MapStyleMenu from "./MapStyleMenu";
+import SectionPanel from "../../../Components/SectionPanel";
 import EditMenu from "./EditMenu";
 import TableInfo from "./TableInfo";
 import SpecialLayersControlsMenu from "./SpecialLayersControlsMenu/";
-import CollapsableCard from "../../../Components/CollapsableCard";
+
+const sections = [
+  {
+    id: "edit",
+    title: "Edit Mode",
+    subheader: "Select Types & Edit",
+    icon: <EditOutlinedIcon />,
+    component: (
+      <>
+        <EditMenu />
+        <TypesMenu />
+      </>
+    ),
+  },
+  {
+    id: "scenarios",
+    title: "Scenarios",
+    subheader: "Save and Load Scenarios",
+    icon: <BookmarksOutlinedIcon />,
+    component: <ScenariosMenu />,
+  },
+  {
+    id: "layers",
+    title: "Layers",
+    subheader: "Layers visibility",
+    icon: <LayersOutlinedIcon />,
+    component: (
+      <>
+        <LayersMenu />
+        <SpecialLayersControlsMenu />
+      </>
+    ),
+  },
+  {
+    id: "map",
+    title: "Map Style",
+    subheader: "Change the base map",
+    icon: <MapOutlinedIcon />,
+    component: <MapStyleMenu />,
+  },
+  {
+    id: "view",
+    title: "View Settings",
+    subheader: "Toggle different visibility settings",
+    icon: <ViewInArOutlinedIcon />,
+    component: <ViewSettingsMenu />,
+  },
+];
 
 function MenuContainer() {
-  const menuItemsArray = [
-    {
-      component: <TableInfo />,
-      collapse: true,
-    },
-
-    {
-      component: (
-        <>
-          <EditMenu />
-          <TypesMenu />
-        </>
-      ),
-      collapse: false,
-      title: "Edit Mode",
-      subheader: "Select Types & Edit",
-    },
-    {
-      component: <ScenariosMenu />,
-      collapse: false,
-      title: "Scenarios",
-      subheader: "Save and Load Scenarios",
-    },
-    {
-      component: (
-        <>
-          <LayersMenu />
-          <SpecialLayersControlsMenu />
-        </>
-      ),
-      collapse: true,
-      title: "Layers",
-      subheader: "Layers visibility",
-    },
-
-    {
-      component: <ViewSettingsMenu />,
-      collapse: false,
-      title: "View Settings",
-      subheader: "Toggle different visibility settings",
-    },
-  ];
-
-  const MenuItems = () => {
-    const m = [];
-
-    menuItemsArray.forEach((item, index) => {
-      m.push(
-        <Grid item xs={12} md={12} lg={12} xl={12} key={item.title + "_grid"}>
-          <CollapsableCard
-            variant="outlined"
-            title={item.title}
-            subheader={item.subheader}
-            collapse={item.collapse}
-          >
-            {item.component}
-          </CollapsableCard>
-        </Grid>
-      );
-    });
-    return m;
-  };
-
   return (
-    <ResizableDrawer direction="left" width={300}>
-      <Box p={1}>
-        <Grid container>
-          <MenuItems />
-        </Grid>
-      </Box>
-    </ResizableDrawer>
+    <SectionPanel
+      side="left"
+      width={320}
+      sections={sections}
+      railTop={<TableInfo variant="avatar" />}
+      header={<TableInfo />}
+    />
   );
 }
 
