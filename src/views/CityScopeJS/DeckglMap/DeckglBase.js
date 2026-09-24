@@ -79,14 +79,18 @@ const hideMapLabels = (e) => {
 // The bearing is relative to the grid axes (360 - header.rotation); +90
 // orbits the camera a quarter turn to the left of that view
 const INITIAL_PITCH = 40;
-const INITIAL_ZOOM = 15.9;
+const INITIAL_ZOOM = 16.5;
 const INITIAL_BEARING_OFFSET = 90;
 // grid width (meters) that INITIAL_ZOOM was tuned for (a 4x4 grid of 63 m cells);
 // bigger or smaller grids are zoomed out / in so they keep the same framing
 const REFERENCE_EXTENT = 252;
 // the view center sits this fraction of the grid width ahead of the grid
 // (along the camera heading), so the grid lands a bit below the screen center
-const INITIAL_CENTER_SHIFT = 0.27;
+const INITIAL_CENTER_SHIFT = 0.15;
+// the view center also sits this fraction of the grid width to the right of the
+// camera, so the grid lands to the left of the screen center (0 = centered,
+// negative = grid to the right)
+const INITIAL_SIDE_SHIFT = 0.1;
 const METERS_PER_DEGREE = 111320;
 
 const computeInitialBearing = (header) =>
@@ -139,7 +143,7 @@ export default function DeckglBase({
       return (particleBursts || []).map((b) => {
         const existing = prevByKey.get(b.key);
         if (existing) return existing;
-        const [x, y] = viewport.project([b.lng, b.lat]);
+        const [x, y] = viewport.project([b.lng, b.lat, b.elevation || 0]);
         return { ...b, x, y };
       });
     });
@@ -173,10 +177,16 @@ export default function DeckglBase({
   const setViewStateToTableHeader = () => {
     const header = cityIOdata.GEOGRID.properties.header;
     const bearing = computeInitialBearing(header);
-    const [longitude, latitude] = shiftPoint(
+    const extent = gridExtent(header) || 0;
+    const ahead = shiftPoint(
       computeMidGridCell(cityIOdata),
-      INITIAL_CENTER_SHIFT * (gridExtent(header) || 0),
+      INITIAL_CENTER_SHIFT * extent,
       bearing
+    );
+    const [longitude, latitude] = shiftPoint(
+      ahead,
+      INITIAL_SIDE_SHIFT * extent,
+      bearing + 90
     );
     return {
       ...viewState,

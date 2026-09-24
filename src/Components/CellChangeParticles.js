@@ -4,7 +4,11 @@ import { useEffect, useMemo } from "react";
 // BURST_LIFETIME_MS in DeckglMap/index.js, which drops the burst's data
 // shortly after this so it doesn't animate again on remount
 const BURST_ANIM_MS = 700;
-const PARTICLES_PER_BURST = 10;
+// placed blocks: each falls for DROP_MS, starting up to DROP_STAGGER_MS after
+// the first one, so the whole burst must stay under BURST_LIFETIME_MS
+const DROP_MS = 500;
+const DROP_STAGGER_MS = 300;
+const PARTICLES_PER_BURST = 25;
 
 // injects the shared keyframes once, no matter how many bursts are on
 // screen - a plain <style> tag is simpler and more reliable here than
@@ -16,10 +20,17 @@ const injectStyles = () => {
   stylesInjected = true;
   const style = document.createElement("style");
   style.textContent = `
-    @keyframes cs-particle-confetti {
-      0% { opacity: 1; transform: translate(-50%, -50%) translate(0, 0) scale(1); }
-      55% { opacity: 1; transform: translate(-50%, -50%) translate(var(--dx), var(--dy-peak)) scale(0.9); }
-      100% { opacity: 0; transform: translate(-50%, -50%) translate(var(--dx), var(--dy-end)) scale(0.4); }
+    @keyframes cs-block-fall {
+      0% { transform: translate(-50%, -50%) translate(var(--dx), var(--dy-start)) scale(1, 1); animation-timing-function: cubic-bezier(0.5, 0, 1, 0.7); }
+      55% { transform: translate(-50%, -50%) translate(var(--dx), var(--dy-land)) scale(1, 1); animation-timing-function: ease-out; }
+      65% { transform: translate(-50%, -50%) translate(var(--dx), var(--dy-land)) scale(1.35, 0.6); animation-timing-function: ease-out; }
+      100% { transform: translate(-50%, -50%) translate(var(--dx), var(--dy-land)) scale(1, 1); }
+    }
+    @keyframes cs-block-fade {
+      0% { opacity: 0; }
+      8% { opacity: 1; }
+      75% { opacity: 1; }
+      100% { opacity: 0; }
     }
     @keyframes cs-particle-dust {
       0% { opacity: 0.9; transform: translate(-50%, -50%) translate(0, 0) scale(1); }
@@ -42,17 +53,24 @@ const makeParticles = (seedKey, kind) => {
   };
   const placed = kind === "placed";
   return Array.from({ length: PARTICLES_PER_BURST }, (_, i) => {
+    if (placed) {
+      // building blocks: drop from above onto the piece's footprint, one
+      // after another, each landing a bit higher than the last (stacking)
+      return {
+        dx: (rand() - 0.5) * 100,
+        dyStart: -(120 + rand() * 90),
+        dyLand: -(i / PARTICLES_PER_BURST) * 14,
+        size: 8 + rand() * 6,
+        delay: rand() * DROP_STAGGER_MS,
+      };
+    }
     const angle = (i / PARTICLES_PER_BURST) * Math.PI * 2 + rand() * 0.6;
-    const distance = 26 + rand() * 34;
+    // dust travels far and wide so the removal is easy to notice
+    const distance = 55 + rand() * 60;
     return {
       dx: Math.cos(angle) * distance,
-      // placed: confetti pops up then falls past its start (gravity).
-      // removed: dust just drifts outward and up, no fall
-      dyPeak: placed ? -distance * 0.6 - rand() * 10 : -distance * 0.5,
-      dyEnd: placed ? distance * 0.7 : -distance * 1.1,
-      // dust reads better bigger: confetti pieces are meant to look crisp
-      // and paper-like, dust is a puff and needs more presence to register
-      size: placed ? 4 + rand() * 4 : 7 + rand() * 7,
+      dyEnd: -distance * 1.0,
+      size: 7 + rand() * 7,
       delay: rand() * 80,
     };
   });
@@ -65,8 +83,11 @@ function Burst({ burst }) {
   );
   const color = burst.color?.length >= 3 ? burst.color : [255, 255, 255];
   const rgb = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
-  const anim =
-    burst.kind === "placed" ? "cs-particle-confetti" : "cs-particle-dust";
+  const placed = burst.kind === "placed";
+  const animationFor = (delay) =>
+    placed
+      ? `cs-block-fall ${DROP_MS}ms linear ${delay}ms both, cs-block-fade ${DROP_MS}ms linear ${delay}ms both`
+      : `cs-particle-dust ${BURST_ANIM_MS}ms ease-out ${delay}ms both`;
 
   return (
     <div style={{ position: "absolute", left: burst.x, top: burst.y }}>
@@ -79,13 +100,19 @@ function Burst({ burst }) {
             top: 0,
             width: p.size,
             height: p.size,
-            borderRadius: burst.kind === "placed" ? 2 : "50%",
+            borderRadius: placed ? 2 : "50%",
             background: rgb,
-            boxShadow: `0 0 ${burst.kind === "placed" ? 4 : 6}px ${rgb}`,
-            animation: `${anim} ${BURST_ANIM_MS}ms ease-out ${p.delay}ms both`,
+            border: placed ? "1px solid rgba(255, 255, 255, 0.4)" : "none",
+            boxSizing: "border-box",
+            boxShadow: `0 0 ${placed ? 4 : 6}px ${rgb}`,
+            animation: animationFor(Math.round(p.delay)),
             "--dx": `${p.dx}px`,
-            "--dy-peak": `${p.dyPeak}px`,
-            "--dy-end": `${p.dyEnd}px`,
+            ...(placed
+              ? {
+                  "--dy-start": `${p.dyStart}px`,
+                  "--dy-land": `${p.dyLand}px`,
+                }
+              : { "--dy-end": `${p.dyEnd}px` }),
           }}
         />
       ))}
@@ -95,7 +122,7 @@ function Burst({ burst }) {
 
 /**
  * A short-lived burst of particles at the screen position of a cell that
- * was just placed (confetti popping up and falling) or removed (dust
+ * was just placed (blocks dropping in and stacking up) or removed (dust
  * drifting away), so the change is unmistakable even at a glance - a
  * plain HTML/CSS overlay above the map canvas, not a deck.gl layer, so it
  * is never hidden behind a building regardless of camera angle or height.

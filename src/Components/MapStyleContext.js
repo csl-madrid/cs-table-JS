@@ -25,13 +25,7 @@ export const MAP_STYLES = [
     style: "mapbox://styles/relnox/ck0h5xn701bpr1dqs3he2lecq?fresh=true",
     preview: "linear-gradient(135deg, #0d0d0d 0%, #9a9a9a 100%)",
   },
-  {
-    id: "dark",
-    name: "Dark",
-    description: "Minimal, monochrome",
-    style: "mapbox://styles/mapbox/dark-v11",
-    preview: "linear-gradient(135deg, #0b0b0b 0%, #2c2c2c 100%)",
-  },
+ 
   {
     id: "night",
     name: "Night 3D",
@@ -44,6 +38,39 @@ export const MAP_STYLES = [
       showTransitLabels: false,
     }),
     preview: "linear-gradient(135deg, #0a1428 0%, #3d4f80 100%)",
+  },
+   {
+    id: "day",
+    name: "Day 3D",
+    description: "Lit 3D city during the day",
+    style: standardStyle({
+      lightPreset: "day",
+      showPointOfInterestLabels: false,
+      showRoadLabels: false,
+      showPlaceLabels: false,
+      showTransitLabels: false,
+    }),
+    preview: "linear-gradient(135deg, #f4f4f4 0%, #c9ced6 100%)",
+  },
+   {
+    id: "dusk",
+    name: "Dusk 3D",
+    description: "Lit 3D city at dusk",
+    style: standardStyle({
+      lightPreset: "dusk",
+      showPointOfInterestLabels: false,
+      showRoadLabels: false,
+      showPlaceLabels: false,
+      showTransitLabels: false,
+    }),
+    preview: "linear-gradient(135deg, #0a1428 0%, #922700 100%)",
+  },
+   {
+    id: "dark",
+    name: "Dark",
+    description: "Minimal, monochrome",
+    style: "mapbox://styles/mapbox/dark-v11",
+    preview: "linear-gradient(135deg, #0b0b0b 0%, #2c2c2c 100%)",
   },
   {
     id: "light",

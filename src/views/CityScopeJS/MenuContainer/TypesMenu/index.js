@@ -12,6 +12,18 @@ import {
 import { useSelector, useDispatch } from "react-redux";
 import { updateTypesMenuState } from "../../../../redux/reducers/menuSlice";
 
+// virtual type that empties a cell instead of painting a piece on it. Tables
+// don't define one, and "None" is what isEmptyCellType/AreaCalc already read
+// as "no piece" (the cell keeps a neutral grey so the flat tile stays visible)
+const EMPTY_TYPE_KEY = "Remove piece";
+const EMPTY_TYPE = {
+  name: "None",
+  description: "Removes the piece and leaves the cell empty",
+  color: [130, 130, 130],
+  height: [0, 0, 0],
+  isEmptyType: true,
+};
+
 export default function TypesListMenu() {
   const dispatch = useDispatch();
   const cityIOdata = useSelector((state) => state.cityIOdataState.cityIOdata);
@@ -103,6 +115,7 @@ export default function TypesListMenu() {
 
                   {selectedType &&
                     selectedType.thisTypeName &&
+                    !selectedType.isEmptyType &&
                     selectedType.height && (
                       <div key={`li_types_div_${index}`}>
                         <Typography>Set Floors</Typography>
@@ -192,5 +205,9 @@ export default function TypesListMenu() {
     );
   };
 
-  return <>{createTypesIcons(landUseTypesList)}</>;
+  return (
+    <>
+      {createTypesIcons({ [EMPTY_TYPE_KEY]: EMPTY_TYPE, ...landUseTypesList })}
+    </>
+  );
 }

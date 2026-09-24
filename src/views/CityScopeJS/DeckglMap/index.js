@@ -31,7 +31,10 @@ import {
   H3ClusterBaseLayer,
   H3HexagonBaseLayer,
 } from "./deckglLayers";
-import { processGridData } from "./deckglLayers/GridLayer";
+import {
+  processGridData,
+  GRID_ELEVATION_SCALE,
+} from "./deckglLayers/GridLayer";
 import useWebSocket from "react-use-websocket";
 import { cityIOSettings } from "../../../settings/settings";
 import { isEmptyCellType, computeFeatureCentroid } from "../../../utils/utils";
@@ -155,10 +158,18 @@ export default function DeckGLMap() {
             const centroid = geometry && computeFeatureCentroid(geometry);
             if (!centroid) return null;
             const sourceCell = wasEmpty ? newData[i] : prevData[i];
+            // same accessor GridLayer uses for a cell's height; placed
+            // blocks land at the top of the finished piece
+            const rawHeight = Array.isArray(newData[i]?.height)
+              ? newData[i].height[1]
+              : 0;
             return {
               key: `${i}-${now}`,
               lng: centroid[0],
               lat: centroid[1],
+              elevation: wasEmpty
+                ? (Number(rawHeight) || 0) * GRID_ELEVATION_SCALE
+                : 0,
               color: sourceCell?.color,
               kind: wasEmpty ? "placed" : "removed",
             };
