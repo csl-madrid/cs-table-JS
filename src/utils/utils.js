@@ -140,6 +140,24 @@ export const computeMidGridCell = (cityIOdata) => {
 };
 
 /**
+ * Rough centroid (average of the ring's points) of a GeoJSON Polygon
+ * feature's exterior ring. Good enough for a single grid cell, which is a
+ * small, near-regular quad - not meant for general/complex polygons.
+ */
+export const computeFeatureCentroid = (geometry) => {
+  const ring = geometry?.coordinates?.[0];
+  if (!Array.isArray(ring) || !ring.length) return null;
+  // the ring is closed (first point repeats as the last): drop the dup
+  const points = ring.slice(0, -1);
+  if (!points.length) return null;
+  const [sumLng, sumLat] = points.reduce(
+    ([lng, lat], [pLng, pLat]) => [lng + pLng, lat + pLat],
+    [0, 0]
+  );
+  return [sumLng / points.length, sumLat / points.length];
+};
+
+/**
  * ! http://stackoverflow.com/questions/2353211/hsl-to-rgb-color-conversion
  *
  * Converts an HSL color value to RGB. Conversion formula

@@ -68,9 +68,7 @@ export const processGridData = (cityIOdata) => {
 // read as deeper and sit better on the dark map. The data is not modified.
 const TONE = 0.9;
 
-// converts a cell's raw `height` value into world elevation. Exported so
-// CellChangeLayer's rising/sinking ring can compute the same world height
-// GridLayer itself renders, and the two stay visually in sync
+// converts a cell's raw `height` value into world elevation
 export const GRID_ELEVATION_SCALE = 5;
 
 export default function GridLayer({

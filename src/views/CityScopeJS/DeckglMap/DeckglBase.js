@@ -1,11 +1,17 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useSelector } from "react-redux";
 import DeckGL from "@deck.gl/react";
-import { LightingEffect, AmbientLight, DirectionalLight } from "deck.gl";
+import {
+  LightingEffect,
+  AmbientLight,
+  DirectionalLight,
+  WebMercatorViewport,
+} from "deck.gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { computeMidGridCell } from "../../../utils/utils";
-import { Map } from "react-map-gl";
+import { Map as MapGL } from "react-map-gl";
 import { useMapStyle } from "../../../Components/MapStyleContext";
+import CellChangeParticles from "../../../Components/CellChangeParticles";
 
 // direction of a light that travels from the left of the screen to its right,
 // as seen by a camera looking towards `bearing`, dropping `drop` units
@@ -111,11 +117,33 @@ export default function DeckglBase({
   layers,
   draggingWhileEditing,
   setDeckGLRef,
+  particleBursts,
 }) {
   const cityIOdata = useSelector((state) => state.cityIOdataState.cityIOdata);
   const menuState = useSelector((state) => state.menuState);
   const [viewState, setViewState] = useState();
   const ref = useRef(null);
+  // particleBursts, with each one's screen position added once (bursts are
+  // short-lived, so no need to keep re-projecting on every camera move)
+  const [projectedBursts, setProjectedBursts] = useState([]);
+
+  useEffect(() => {
+    if (!viewState) return;
+    const viewport = new WebMercatorViewport({
+      ...viewState,
+      width: window.innerWidth,
+      height: window.innerHeight,
+    });
+    setProjectedBursts((prev) => {
+      const prevByKey = new Map(prev.map((b) => [b.key, b]));
+      return (particleBursts || []).map((b) => {
+        const existing = prevByKey.get(b.key);
+        if (existing) return existing;
+        const [x, y] = viewport.project([b.lng, b.lat]);
+        return { ...b, x, y };
+      });
+    });
+  }, [particleBursts, viewState]);
 
   const { mapStyle } = useMapStyle();
 
@@ -231,11 +259,12 @@ export default function DeckglBase({
         keyboard: false,
       }}
     >
-      <Map
+      <MapGL
         mapStyle={mapStyle.style}
         mapboxAccessToken={process.env.REACT_APP_MAPBOX_TOKEN}
         onStyleData={hideMapLabels}
       />
+      <CellChangeParticles bursts={projectedBursts} />
     </DeckGL>
   );
 }
