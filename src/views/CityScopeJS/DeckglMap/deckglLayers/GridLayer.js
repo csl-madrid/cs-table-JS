@@ -1,5 +1,10 @@
 import { GeoJsonLayer } from "deck.gl";
-import { hexToRgb, testHex, easeOutBack } from "../../../../utils/utils";
+import {
+  hexToRgb,
+  testHex,
+  easeOutBack,
+  isEmptyCellType,
+} from "../../../../utils/utils";
 
 /**
  * Description. uses deck api to
@@ -19,6 +24,42 @@ export const multipleObjPicked = (e, pickingRadius, deckGLRef) => {
   return multipleObj;
 };
 
+// the "Remove piece" edit makes a cell identical to an empty cell of the grid
+const EMPTY_REFERENCE_CELL_ID = 0;
+// fields that identify the cell itself, never copied from the empty cell
+const CELL_IDENTITY_KEYS = ["id", "interactive"];
+
+/**
+ * Properties of an empty cell of the grid: cell 0 if it is empty, else the
+ * first empty one. Tables label pieces with either `type` or `name`, so
+ * the whole set of fields is copied rather than guessing which one is used.
+ * Falls back to the virtual "Remove piece" type when no cell is empty
+ */
+const findEmptyCellTemplate = (data, virtualType) => {
+  const cells = (data?.features || []).map((f) => f.properties);
+  const reference =
+    cells.find(
+      (p) => p?.id === EMPTY_REFERENCE_CELL_ID && isEmptyCellType(p)
+    ) || cells.find((p) => p && isEmptyCellType(p));
+  if (reference) return reference;
+  const { height, color, name } = virtualType;
+  return { type: name, name, height, color };
+};
+
+// turns a cell into a copy of the template: the template's fields are set,
+// and any other piece field the cell had (e.g. `name` on a `type`-only empty
+// cell) is removed, so nothing of the old piece is left behind
+const emptyCell = (cellProps, template) => {
+  Object.keys(cellProps).forEach((key) => {
+    if (!CELL_IDENTITY_KEYS.includes(key) && !(key in template))
+      delete cellProps[key];
+  });
+  Object.entries(template).forEach(([key, value]) => {
+    if (CELL_IDENTITY_KEYS.includes(key)) return;
+    cellProps[key] = Array.isArray(value) ? [...value] : value;
+  });
+};
+
 /**
  * Description. allow only to pick cells that are
  *  not of CityScope TUI & that are intractable
@@ -29,18 +70,45 @@ const handleGridCellEditing = (
   selectedType,
   setSelectedCellsState,
   pickingRadius,
-  deckGLRef
+  deckGLRef,
+  data,
+  onCellsEdited
 ) => {
   const { height, color, name } = selectedType;
+  const emptyTemplate = selectedType.isEmptyType
+    ? findEmptyCellTemplate(data, selectedType)
+    : null;
   const multiSelectedObj = multipleObjPicked(e, pickingRadius, deckGLRef);
+  // cells that went from empty to filled or the other way round
+  const changes = [];
   multiSelectedObj.forEach((selected) => {
     const thisCellProps = selected.object.properties;
     if (thisCellProps && thisCellProps.interactive) {
-      thisCellProps.color = testHex(color) ? hexToRgb(color) : color;
-      thisCellProps.height = height;
-      thisCellProps.name = name;
+      const wasEmpty = isEmptyCellType(thisCellProps);
+      const previousColor = thisCellProps.color;
+      if (emptyTemplate) {
+        emptyCell(thisCellProps, emptyTemplate);
+      } else {
+        thisCellProps.color = testHex(color) ? hexToRgb(color) : color;
+        thisCellProps.height = height;
+        thisCellProps.name = name;
+      }
+      // painting over a cell that already has the same kind of piece (or
+      // none) changes nothing worth animating
+      if (wasEmpty !== isEmptyCellType(thisCellProps)) {
+        changes.push({
+          id: thisCellProps.id,
+          geometry: selected.object.geometry,
+          wasEmpty,
+          // the piece that appeared, or the one that just went away
+          color: wasEmpty ? thisCellProps.color : previousColor,
+          previousColor,
+          height: thisCellProps.height,
+        });
+      }
     }
   });
+  if (changes.length && onCellsEdited) onCellsEdited(changes);
   setSelectedCellsState(multiSelectedObj);
 };
 
@@ -80,8 +148,14 @@ export default function GridLayer({
     selectedCellsState,
     pickingRadius,
     opacity,
+    pendingCells,
   },
-  updaters: { setSelectedCellsState, setDraggingWhileEditing, setHoveredObj },
+  updaters: {
+    setSelectedCellsState,
+    setDraggingWhileEditing,
+    setHoveredObj,
+    onCellsEdited,
+  },
   deckGLRef,
 }) {
   // the layer opacity slider (0-1) only affects the fill: the outlines
@@ -114,9 +188,14 @@ export default function GridLayer({
     // highlight the cell under the cursor
     autoHighlight: true,
     highlightColor: [255, 255, 255, 70],
-    getElevation: (d) => d.properties.height[1],
+    // `pendingCells` (cell id -> color it had) are cells whose piece was just
+    // placed but is held back for a moment, so the blocks dropping onto it
+    // (see CellChangeParticles) start before the piece itself appears
+    getElevation: (d) =>
+      pendingCells?.has(d.properties.id) ? 0 : d.properties.height[1],
     getFillColor: (d) => {
-      const [r, g, b] = d.properties.color;
+      const held = pendingCells?.get(d.properties.id);
+      const [r, g, b] = Array.isArray(held) ? held : d.properties.color;
       return [r * TONE, g * TONE, b * TONE, fillAlpha];
     },
 
@@ -127,7 +206,9 @@ export default function GridLayer({
           selectedType,
           setSelectedCellsState,
           pickingRadius,
-          deckGLRef
+          deckGLRef,
+          data,
+          onCellsEdited
         );
     },
 
@@ -138,7 +219,9 @@ export default function GridLayer({
           selectedType,
           setSelectedCellsState,
           pickingRadius,
-          deckGLRef
+          deckGLRef,
+          data,
+          onCellsEdited
         );
     },
 
@@ -158,8 +241,8 @@ export default function GridLayer({
       setDraggingWhileEditing(false);
     },
     updateTriggers: {
-      getFillColor: [selectedCellsState, fillAlpha],
-      getElevation: selectedCellsState,
+      getFillColor: [selectedCellsState, fillAlpha, pendingCells],
+      getElevation: [selectedCellsState, pendingCells],
     },
     transitions: {
       // quick fade to the new type's color

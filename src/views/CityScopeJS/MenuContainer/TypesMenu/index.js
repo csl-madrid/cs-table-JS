@@ -13,8 +13,10 @@ import { useSelector, useDispatch } from "react-redux";
 import { updateTypesMenuState } from "../../../../redux/reducers/menuSlice";
 
 // virtual type that empties a cell instead of painting a piece on it. Tables
-// don't define one, and "None" is what isEmptyCellType/AreaCalc already read
-// as "no piece" (the cell keeps a neutral grey so the flat tile stays visible)
+// don't define one. GridLayer (resolveEditProps) makes the cell look like an
+// empty cell of the grid itself; the values below are only the fallback when
+// the grid has no empty cell to copy ("None" is what isEmptyCellType/AreaCalc
+// already read as "no piece")
 const EMPTY_TYPE_KEY = "Remove piece";
 const EMPTY_TYPE = {
   name: "None",

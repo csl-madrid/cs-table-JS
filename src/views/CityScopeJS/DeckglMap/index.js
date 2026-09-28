@@ -37,7 +37,11 @@ import {
 } from "./deckglLayers/GridLayer";
 import useWebSocket from "react-use-websocket";
 import { cityIOSettings } from "../../../settings/settings";
-import { isEmptyCellType, computeFeatureCentroid } from "../../../utils/utils";
+import {
+  isEmptyCellType,
+  computeFeatureCentroid,
+  hexToRgb,
+} from "../../../utils/utils";
 
 // treat a GEOGRIDDATA update as a bulk change (loading a table, restoring a
 // scenario...) rather than individual placed/removed pieces once more than
@@ -48,6 +52,15 @@ const BULK_CHANGE_RATIO = 0.3;
 // animation itself (see CellChangeParticles.js) so the last particles get
 // to finish their own animation/delay before being unmounted
 const BURST_LIFETIME_MS = 900;
+
+// cells animated while editing stay marked this long after leaving edit mode,
+// so the update cityIO sends back with those same changes doesn't animate them
+// a second time
+const EDIT_ECHO_WINDOW_MS = 5000;
+
+// a newly placed piece stays flat (looking like the empty cell it was) for this
+// long, so the blocks dropping onto it start before the piece itself grows
+const PLACE_LEAD_MS = 220;
 
 export default function DeckGLMap() {
   // get cityio data from redux store
@@ -69,6 +82,13 @@ export default function DeckGLMap() {
   const prevGeogriddataRef = useRef(null);
   // pending cleanup timers for particleBursts, keyed by burst key
   const burstTimersRef = useRef(new Map());
+  // cells already animated while editing: cell id -> whether it ended up empty
+  const editAnimatedRef = useRef(new Map());
+  // just-placed cells held back for PLACE_LEAD_MS: cell id -> color it had.
+  // A new Map on every change, since GridLayer reads it as an update trigger
+  const [pendingCells, setPendingCells] = useState(() => new Map());
+  // release timers for pendingCells, keyed by cell id
+  const pendingTimersRef = useRef(new Map());
 
   // sets data from all hovered objected currently in the viewport
   const [layerHoveredData, setLayerHoveredData] = useState();
@@ -116,13 +136,87 @@ export default function DeckGLMap() {
     });
   };
 
-  // clear any pending burst cleanup timers on unmount
+  // holds just-placed cells flat for PLACE_LEAD_MS, then lets them grow
+  const holdPlacedCells = (cells) => {
+    if (!cells.length) return;
+    setPendingCells((prev) => {
+      const next = new Map(prev);
+      cells.forEach(({ id, color }) => next.set(id, color));
+      return next;
+    });
+    cells.forEach(({ id }) => {
+      clearTimeout(pendingTimersRef.current.get(id));
+      pendingTimersRef.current.set(
+        id,
+        setTimeout(() => {
+          pendingTimersRef.current.delete(id);
+          setPendingCells((prev) => {
+            const next = new Map(prev);
+            next.delete(id);
+            return next;
+          });
+        }, PLACE_LEAD_MS)
+      );
+    });
+  };
+
+  // clear any pending timers (burst cleanup, held cells) on unmount
   useEffect(() => {
-    const timers = burstTimersRef.current;
+    const timers = [burstTimersRef.current, pendingTimersRef.current];
     return () => {
-      timers.forEach((t) => clearTimeout(t));
+      timers.forEach((map) => map.forEach((t) => clearTimeout(t)));
     };
   }, []);
+
+  // starting an edit session begins with a clean slate; after it ends, the
+  // marks are kept just long enough for cityIO's echo of the edits to arrive
+  useEffect(() => {
+    const animated = editAnimatedRef.current;
+    if (editModeToggle) {
+      animated.clear();
+      return;
+    }
+    const timer = setTimeout(() => animated.clear(), EDIT_ECHO_WINDOW_MS);
+    return () => clearTimeout(timer);
+  }, [editModeToggle]);
+
+  // one burst for a cell that went empty -> filled ("placed") or filled ->
+  // empty ("removed"). `color` is the piece's color, `height` its raw height
+  const buildBurst = (index, geometry, wasEmpty, color, height) => {
+    const centroid = geometry && computeFeatureCentroid(geometry);
+    if (!centroid) return null;
+    // same accessor GridLayer uses for a cell's height; placed blocks land
+    // at the top of the finished piece
+    const rawHeight = Array.isArray(height) ? height[1] : 0;
+    return {
+      key: `${index}-${Date.now()}`,
+      lng: centroid[0],
+      lat: centroid[1],
+      elevation: wasEmpty
+        ? (Number(rawHeight) || 0) * GRID_ELEVATION_SCALE
+        : 0,
+      color: typeof color === "string" ? hexToRgb(color) : color,
+      kind: wasEmpty ? "placed" : "removed",
+    };
+  };
+
+  // GridLayer reports the cells whose piece was just placed/removed by
+  // painting in edit mode: animate them right away, and remember them so the
+  // update cityIO sends back later doesn't animate the same change again
+  const handleCellsEdited = (changes) => {
+    const bursts = changes
+      .map(({ id, geometry, wasEmpty, color, height }) => {
+        editAnimatedRef.current.set(id, !wasEmpty);
+        return buildBurst(id, geometry, wasEmpty, color, height);
+      })
+      .filter(Boolean);
+    addParticleBursts(bursts);
+    holdPlacedCells(
+      changes
+        .filter((c) => c.wasEmpty)
+        .map(({ id, previousColor }) => ({ id, color: previousColor }))
+    );
+  };
 
   // update the grid layer with every change to GEOGRIDDATA, and burst
   // particles at any cell that just got a piece placed on it or removed
@@ -150,32 +244,29 @@ export default function DeckGLMap() {
         changed.length &&
         changed.length <= newData.length * BULK_CHANGE_RATIO
       ) {
-        const now = Date.now();
+        const held = [];
         const bursts = changed
           .map((i) => {
             const wasEmpty = isEmptyCellType(prevData[i]);
-            const geometry = newGrid.features[i]?.geometry;
-            const centroid = geometry && computeFeatureCentroid(geometry);
-            if (!centroid) return null;
+            // already animated while editing: this is just cityIO echoing it
+            const editedToEmpty = editAnimatedRef.current.get(i);
+            if (editedToEmpty !== undefined) {
+              editAnimatedRef.current.delete(i);
+              if (editedToEmpty === !wasEmpty) return null;
+            }
+            if (wasEmpty) held.push({ id: i, color: prevData[i]?.color });
             const sourceCell = wasEmpty ? newData[i] : prevData[i];
-            // same accessor GridLayer uses for a cell's height; placed
-            // blocks land at the top of the finished piece
-            const rawHeight = Array.isArray(newData[i]?.height)
-              ? newData[i].height[1]
-              : 0;
-            return {
-              key: `${i}-${now}`,
-              lng: centroid[0],
-              lat: centroid[1],
-              elevation: wasEmpty
-                ? (Number(rawHeight) || 0) * GRID_ELEVATION_SCALE
-                : 0,
-              color: sourceCell?.color,
-              kind: wasEmpty ? "placed" : "removed",
-            };
+            return buildBurst(
+              i,
+              newGrid.features[i]?.geometry,
+              wasEmpty,
+              sourceCell?.color,
+              newData[i]?.height
+            );
           })
           .filter(Boolean);
         addParticleBursts(bursts);
+        holdPlacedCells(held);
       }
     }
     prevGeogriddataRef.current = newData;
@@ -218,6 +309,7 @@ export default function DeckGLMap() {
         keyDownState,
         selectedCellsState,
         pickingRadius,
+        pendingCells,
         opacity:
           layersMenu &&
           layersMenu.GRID_LAYER_CHECKBOX &&
@@ -227,6 +319,7 @@ export default function DeckGLMap() {
         setSelectedCellsState,
         setDraggingWhileEditing,
         setHoveredObj,
+        onCellsEdited: handleCellsEdited,
       },
       deckGLRef: deckGLRef,
     }),
