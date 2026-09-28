@@ -131,24 +131,6 @@ export default function DeckglBase({
   // short-lived, so no need to keep re-projecting on every camera move)
   const [projectedBursts, setProjectedBursts] = useState([]);
 
-  useEffect(() => {
-    if (!viewState) return;
-    const viewport = new WebMercatorViewport({
-      ...viewState,
-      width: window.innerWidth,
-      height: window.innerHeight,
-    });
-    setProjectedBursts((prev) => {
-      const prevByKey = new Map(prev.map((b) => [b.key, b]));
-      return (particleBursts || []).map((b) => {
-        const existing = prevByKey.get(b.key);
-        if (existing) return existing;
-        const [x, y] = viewport.project([b.lng, b.lat, b.elevation || 0]);
-        return { ...b, x, y };
-      });
-    });
-  }, [particleBursts, viewState]);
-
   const { mapStyle } = useMapStyle();
 
   // the light is defined relative to the initial camera heading
@@ -198,6 +180,42 @@ export default function DeckglBase({
       orthographic: false,
     };
   };
+
+  // gives each new burst its screen position. Where the camera is, in order
+  // of preference: deck.gl's own live viewport (getViewports() throws while it
+  // is initializing, and is empty if the canvas has no size yet), the last
+  // `viewState` (only set after the first camera move), and finally the
+  // initial view, which is what deck.gl shows until someone moves the camera
+  useEffect(() => {
+    let deckViewport;
+    try {
+      deckViewport = ref.current?.deck?.getViewports?.()[0];
+    } catch {
+      deckViewport = undefined;
+    }
+    const viewport =
+      deckViewport ||
+      new WebMercatorViewport({
+        ...(viewState || setViewStateToTableHeader()),
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    setProjectedBursts((prev) => {
+      const prevByKey = new Map(prev.map((b) => [b.key, b]));
+      return (particleBursts || []).map((b) => {
+        const existing = prevByKey.get(b.key);
+        if (existing) return existing;
+        // screen position of the cell's base, and how many pixels above it
+        // the finished piece's top lands (placed blocks rise that far)
+        const [x, y] = viewport.project([b.lng, b.lat, 0]);
+        const riseY = b.elevation
+          ? Math.max(0, y - viewport.project([b.lng, b.lat, b.elevation])[1])
+          : 0;
+        return { ...b, x, y, riseY };
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [particleBursts, viewState]);
 
   useEffect(() => {
     const header = cityIOdata.GEOGRID.properties.header;

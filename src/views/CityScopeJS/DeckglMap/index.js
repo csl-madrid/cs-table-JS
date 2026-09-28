@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
 import PaintBrush from "../../../Components/PaintBrush";
 import { LayerHoveredTooltip } from "../../../Components/LayerHoveredTooltip";
+import { BURST_TOTAL_MS } from "../../../Components/CellChangeParticles";
 import DeckglBase from "./DeckglBase";
 import "mapbox-gl/dist/mapbox-gl.css";
 import {
@@ -48,10 +49,9 @@ import {
 // this many cells flip empty<->filled in the same update
 const BULK_CHANGE_RATIO = 0.3;
 
-// how long a particle burst's data is kept around. Longer than the CSS
-// animation itself (see CellChangeParticles.js) so the last particles get
-// to finish their own animation/delay before being unmounted
-const BURST_LIFETIME_MS = 900;
+// how long a particle burst's data is kept around: the time its last particle
+// needs to finish (see CellChangeParticles.js) plus a small margin
+const BURST_LIFETIME_MS = BURST_TOTAL_MS + 100;
 
 // cells animated while editing stay marked this long after leaving edit mode,
 // so the update cityIO sends back with those same changes doesn't animate them
