@@ -91,6 +91,16 @@ const INITIAL_CENTER_SHIFT = 0.15;
 // camera, so the grid lands to the left of the screen center (0 = centered,
 // negative = grid to the right)
 const INITIAL_SIDE_SHIFT = 0.1;
+// demo view only: extra zoom on top of the automatic framing of its smaller
+// map box. 1 = same framing as the full window scaled down; 2 = grid twice as
+// big (each doubling is one zoom level); 0.8 = smaller
+const DEMO_ZOOM_BOOST = 1.3;
+// demo view only, same meaning as INITIAL_CENTER_SHIFT / INITIAL_SIDE_SHIFT but
+// for its own map box. Vertical: positive moves the grid down the screen,
+// negative up, 0 = centered. Horizontal: positive moves the grid to the left,
+// negative to the right, 0 = centered. The distance on screen grows with zoom
+const DEMO_CENTER_SHIFT = 0.25;
+const DEMO_SIDE_SHIFT = 0;
 const METERS_PER_DEGREE = 111320;
 
 const computeInitialBearing = (header) =>
@@ -99,10 +109,13 @@ const computeInitialBearing = (header) =>
 const gridExtent = (header) =>
   Math.max(header.nrows, header.ncols) * header.cellSize;
 
-const computeInitialZoom = (header) => {
+// `sizeFactor` is how much smaller than the window the map is (1 = as big):
+// the zoom drops by log2 of it so the grid keeps its place inside the box
+const computeInitialZoom = (header, sizeFactor = 1) => {
   const extent = gridExtent(header);
   if (!extent) return INITIAL_ZOOM;
-  const zoom = INITIAL_ZOOM - Math.log2(extent / REFERENCE_EXTENT);
+  const zoom =
+    INITIAL_ZOOM - Math.log2(extent / REFERENCE_EXTENT) + Math.log2(sizeFactor);
   return Math.min(Math.max(zoom, 12), 19);
 };
 
@@ -122,9 +135,25 @@ export default function DeckglBase({
   draggingWhileEditing,
   setDeckGLRef,
   particleBursts,
+  demoMode = false,
+  mapSize,
 }) {
   const cityIOdata = useSelector((state) => state.cityIOdataState.cityIOdata);
   const menuState = useSelector((state) => state.menuState);
+  // in the demo view the map is a box smaller than the window, without side
+  // panels: frame the grid for that box, and center it instead of leaving
+  // room for the panels
+  const sizeFactor =
+    demoMode && mapSize
+      ? DEMO_ZOOM_BOOST *
+        (Math.round(
+          Math.min(
+            mapSize.width / window.innerWidth,
+            mapSize.height / window.innerHeight
+          ) * 100
+        ) /
+          100)
+      : 1;
   const [viewState, setViewState] = useState();
   const ref = useRef(null);
   // particleBursts, with each one's screen position added once (bursts are
@@ -162,24 +191,33 @@ export default function DeckglBase({
     const extent = gridExtent(header) || 0;
     const ahead = shiftPoint(
       computeMidGridCell(cityIOdata),
-      INITIAL_CENTER_SHIFT * extent,
+      (demoMode ? DEMO_CENTER_SHIFT : INITIAL_CENTER_SHIFT) * extent,
       bearing
     );
     const [longitude, latitude] = shiftPoint(
       ahead,
-      INITIAL_SIDE_SHIFT * extent,
+      (demoMode ? DEMO_SIDE_SHIFT : INITIAL_SIDE_SHIFT) * extent,
       bearing + 90
     );
     return {
       ...viewState,
       longitude,
       latitude,
-      zoom: computeInitialZoom(header),
+      zoom: computeInitialZoom(header, sizeFactor),
       pitch: INITIAL_PITCH,
       bearing,
       orthographic: false,
     };
   };
+
+  // in the demo view the size of the map box is only known after the view has
+  // switched, so the framing computed on mount used the previous (full window)
+  // size: frame the grid again as soon as the real size arrives
+  useEffect(() => {
+    if (!demoMode) return;
+    setViewState(setViewStateToTableHeader());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [demoMode, sizeFactor]);
 
   // gives each new burst its screen position. Where the camera is, in order
   // of preference: deck.gl's own live viewport (getViewports() throws while it
@@ -197,8 +235,8 @@ export default function DeckglBase({
       deckViewport ||
       new WebMercatorViewport({
         ...(viewState || setViewStateToTableHeader()),
-        width: window.innerWidth,
-        height: window.innerHeight,
+        width: mapSize?.width || window.innerWidth,
+        height: mapSize?.height || window.innerHeight,
       });
     setProjectedBursts((prev) => {
       const prevByKey = new Map(prev.map((b) => [b.key, b]));

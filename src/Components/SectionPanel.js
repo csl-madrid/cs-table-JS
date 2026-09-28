@@ -29,6 +29,8 @@ const EASING = "cubic-bezier(0.2, 0.8, 0.2, 1)";
  * - width: initial panel width in px
  * - railTop: optional node at the top of the rail (e.g. an avatar)
  * - header: optional node at the top of the panel
+ * - bottomInset: px the rail keeps free at the bottom of the screen (to make
+ *   room for something floating there); defaults to the usual margin
  */
 export default function SectionPanel({
   side = "left",
@@ -38,6 +40,7 @@ export default function SectionPanel({
   width = 320,
   railTop,
   header,
+  bottomInset = GAP,
 }) {
   const isRight = side === "right";
   // ids of the sections currently shown (empty = none)
@@ -105,7 +108,7 @@ export default function SectionPanel({
         sx={{
           position: "fixed",
           top: GAP,
-          bottom: GAP,
+          bottom: bottomInset,
           left: isRight ? undefined : GAP,
           right: isRight ? GAP : undefined,
           width: RAIL_WIDTH,

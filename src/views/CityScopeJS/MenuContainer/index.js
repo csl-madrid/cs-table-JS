@@ -9,6 +9,7 @@ import ViewSettingsMenu from "./ViewSettingsMenu";
 import ScenariosMenu from "./ScenariosMenu";
 import MapStyleMenu from "./MapStyleMenu";
 import SectionPanel from "../../../Components/SectionPanel";
+import { DEMO_BUTTON_CLEARANCE } from "../DemoMode/DemoModeButton";
 import EditMenu from "./EditMenu";
 import TableInfo from "./TableInfo";
 import SpecialLayersControlsMenu from "./SpecialLayersControlsMenu/";
@@ -69,6 +70,8 @@ function MenuContainer() {
       sections={sections}
       railTop={<TableInfo variant="avatar" />}
       header={<TableInfo />}
+      // the demo-mode button floats in the bottom-left corner
+      bottomInset={DEMO_BUTTON_CLEARANCE}
     />
   );
 }

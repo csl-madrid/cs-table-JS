@@ -62,7 +62,8 @@ const EDIT_ECHO_WINDOW_MS = 5000;
 // long, so the blocks dropping onto it start before the piece itself grows
 const PLACE_LEAD_MS = 220;
 
-export default function DeckGLMap() {
+// `demoMode`: the map lives in a smaller box (`mapSize`) with no option panels
+export default function DeckGLMap({ demoMode = false, mapSize }) {
   // get cityio data from redux store
   const cityIOdata = useSelector((state) => state.cityIOdataState.cityIOdata);
   // get menu state from redux store
@@ -95,6 +96,9 @@ export default function DeckGLMap() {
 
   const pickingRadius = 40;
   const editModeToggle = menuState.editMenuState.EDIT_BUTTON;
+  // editing needs the option panels, which the demo view hides: the session
+  // stays as it was (unsent edits included) and paints again on leaving demo
+  const paintingOn = editModeToggle && !demoMode;
   const selectedType = menuState.typesMenuState.SELECTED_TYPE;
   const layersMenu = menuState.layersMenuState;
 
@@ -303,7 +307,7 @@ export default function DeckGLMap() {
 
     GRID: GridLayer({
       data: GEOGRIDDATA,
-      editOn: editModeToggle,
+      editOn: paintingOn,
       state: {
         selectedType,
         keyDownState,
@@ -582,7 +586,7 @@ export default function DeckGLMap() {
         {layersMenu.GRID_LAYER_CHECKBOX &&
           layersMenu.GRID_LAYER_CHECKBOX.isOn && (
             <PaintBrush
-              editOn={editModeToggle}
+              editOn={paintingOn}
               mousePos={mousePos}
               selectedType={selectedType}
               pickingRadius={pickingRadius}
@@ -590,12 +594,17 @@ export default function DeckGLMap() {
               hoveredObj={hoveredObj}
             />
           )}
+        {/* the key remounts it on each switch, which frames the camera again
+            for the new size of the map */}
         <DeckglBase
+          key={demoMode ? "demo" : "full"}
           setDeckGLRef={setDeckGLRef}
           layers={renderDeckLayers()}
           draggingWhileEditing={draggingWhileEditing}
           toggleRotateCamera={toggleRotateCamera}
           particleBursts={particleBursts}
+          demoMode={demoMode}
+          mapSize={mapSize}
         />
       </div>
     </>

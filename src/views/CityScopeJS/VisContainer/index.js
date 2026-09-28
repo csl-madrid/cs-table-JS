@@ -6,7 +6,8 @@ import BarChart from "./BarChart";
 import AreaCalc from "./AreaCalc";
 import SectionPanel from "../../../Components/SectionPanel";
 
-const sections = [
+// also used by the demo view, which shows them one at a time
+export const metricSections = [
   {
     id: "landuse",
     title: "Land-use",
@@ -38,7 +39,7 @@ function VisContainer() {
       side="right"
       // wide enough for the charts, otherwise a fifth of the screen
       width={Math.max(320, window.innerWidth / 5)}
-      sections={sections}
+      sections={metricSections}
       // charts can be compared side by side
       multiple
     />
