@@ -594,10 +594,9 @@ export default function DeckGLMap({ demoMode = false, mapSize }) {
               hoveredObj={hoveredObj}
             />
           )}
-        {/* the key remounts it on each switch, which frames the camera again
-            for the new size of the map */}
+        {/* never remounted when the view switches: DeckglBase itself glides
+            the camera to the framing of the new map size */}
         <DeckglBase
-          key={demoMode ? "demo" : "full"}
           setDeckGLRef={setDeckGLRef}
           layers={renderDeckLayers()}
           draggingWhileEditing={draggingWhileEditing}

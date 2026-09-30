@@ -93,7 +93,14 @@ export default function DemoMetricsPanel() {
         <Box
           sx={{
             m: "auto",
-            width: "min(100%, 760px, calc(100vh - 260px))",
+            // a percentage height needs a parent with a definite (non-flex-
+            // computed) height to resolve against, which this box's parent
+            // doesn't have - so a plain `height: min(100%, ...)` here is
+            // silently invalid and falls back to auto, sized by the chart
+            // itself, making a vh term in it a no-op. aspectRatio sidesteps
+            // that entirely: height always simply follows the resolved width
+            width: "min(100%, 820px, calc(100vh - 80px))",
+            aspectRatio: "1",
           }}
         >
           {active.component}

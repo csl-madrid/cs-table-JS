@@ -6,12 +6,22 @@ import {
   AmbientLight,
   DirectionalLight,
   WebMercatorViewport,
+  LinearInterpolator,
 } from "deck.gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { computeMidGridCell } from "../../../utils/utils";
 import { Map as MapGL } from "react-map-gl";
 import { useMapStyle } from "../../../Components/MapStyleContext";
 import CellChangeParticles from "../../../Components/CellChangeParticles";
+import { DEMO_TRANSITION_MS } from "../DemoMode/layout";
+
+// eases like the demo layout's own CSS transition (DEMO_EASING there is
+// "cubic-bezier(0.2, 0.8, 0.2, 1)"), so the camera and the surrounding
+// panels appear to move together. Deck.gl's transitionEasing takes a plain
+// (t) => t function, not a CSS easing string, and a cubic-bezier has no
+// closed form: this cubic ease-out is visually very close and cheap per frame
+const easeDemoTransition = (t) => 1 - Math.pow(1 - t, 3);
+const demoTransition = new LinearInterpolator(["longitude", "latitude", "zoom"]);
 
 // direction of a light that travels from the left of the screen to its right,
 // as seen by a camera looking towards `bearing`, dropping `drop` units
@@ -210,12 +220,26 @@ export default function DeckglBase({
     };
   };
 
-  // in the demo view the size of the map box is only known after the view has
-  // switched, so the framing computed on mount used the previous (full window)
-  // size: frame the grid again as soon as the real size arrives
+  // re-frames the grid, gliding the camera there instead of snapping, so it
+  // tracks the demo layout's own CSS transition (see DemoMode/layout.js) as
+  // the map box resizes between the regular and the demo view. Also fires
+  // once more once the demo box's real size arrives (its target size is only
+  // known - and used - right when the view switches, ahead of the CSS/layout
+  // actually catching up), but skips the very first run: on mount there is
+  // nothing to glide from yet, and setViewStateToTableHeader() below already
+  // frames the initial view
+  const hasFramedRef = useRef(false);
   useEffect(() => {
-    if (!demoMode) return;
-    setViewState(setViewStateToTableHeader());
+    if (!hasFramedRef.current) {
+      hasFramedRef.current = true;
+      return;
+    }
+    setViewState({
+      ...setViewStateToTableHeader(),
+      transitionDuration: DEMO_TRANSITION_MS,
+      transitionInterpolator: demoTransition,
+      transitionEasing: easeDemoTransition,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [demoMode, sizeFactor]);
 

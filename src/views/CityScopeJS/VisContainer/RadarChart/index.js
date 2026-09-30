@@ -71,7 +71,7 @@ const options = {
           );
           var size = Math.round(avgSize / 80);
           return {
-            size: size > 8 ? size : 8,
+            size: size > 1000 ? size : 12,
           };
         },
       },
