@@ -71,7 +71,7 @@ const options = {
           );
           var size = Math.round(avgSize / 80);
           return {
-            size: size > 1000 ? size : 12,
+            size: size > 1000 ? size : 13,
           };
         },
       },
@@ -111,6 +111,23 @@ const noData = {
       borderWidth: 1,
     },
   ],
+};
+
+// splits a long label into ~2 lines of similar width, so it takes up less
+// horizontal room around the radar without cutting any word in half
+const splitLabel = (name, maxLineLength = 14) => {
+  if (name.length <= maxLineLength) return name;
+  const words = name.split(" ");
+  const lines = [""];
+  words.forEach((word) => {
+    const current = lines[lines.length - 1];
+    if (current && (current + " " + word).length > maxLineLength) {
+      lines.push(word);
+    } else {
+      lines[lines.length - 1] = current ? `${current} ${word}` : word;
+    }
+  });
+  return lines;
 };
 
 export default function RadarChart() {
@@ -153,7 +170,7 @@ export default function RadarChart() {
 
     for (let i = 0; i < indicators.length; i++) {
       if (indicators[i].viz_type === "radar") {
-        radarData.labels.push(indicators[i].name);
+        radarData.labels.push(splitLabel(indicators[i].name));
         radarData.datasets[0].data.push(indicators[i].value);
         radarData.datasets[0].label = cityIOdata?.tableName;
 

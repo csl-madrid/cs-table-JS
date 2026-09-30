@@ -81,6 +81,12 @@ export default function DemoMetricsPanel() {
           flexGrow: 1,
           minHeight: 0,
           overflow: "auto",
+          // stays scrollable (a fallback for content that doesn't fit, e.g.
+          // Land-use's legend) but hides the scrollbar chrome itself, which
+          // otherwise nibbles a few px off the chart's available width
+          scrollbarWidth: "none", // Firefox
+          msOverflowStyle: "none", // old Edge/IE
+          "&::-webkit-scrollbar": { display: "none" }, // Chrome/Safari/Edge
           colorScheme: "dark",
           px: 3,
           pb: 9,
