@@ -4,11 +4,13 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
 import { Doughnut } from "react-chartjs-2";
 import ChartDataLabels from "chartjs-plugin-datalabels";
 import {
+  Box,
   Switch,
   FormGroup,
   FormControlLabel,
   Typography,
 } from "@mui/material/";
+import { useChartOptions } from "../ChartFrame";
 
 export const options = {
   plugins: {
@@ -83,8 +85,10 @@ export const options = {
   },
 };
 
-export default function AreaCalc() {
+// `fill`: take the whole box the chart is in (see ChartFrame)
+export default function AreaCalc({ fill = false }) {
   const cityIOdata = useSelector((state) => state.cityIOdataState.cityIOdata);
+  const chartOptions = useChartOptions(options, fill);
   const [chartData, setChartData] = useState({
     labels: [],
     datasets: [],
@@ -176,25 +180,46 @@ export default function AreaCalc() {
     setOnlyInteractive(event.target.checked);
   };
 
+  const areaSwitch = (
+    <FormGroup>
+      <FormControlLabel
+        control={<Switch onChange={handleSwitchChange} size="small" />}
+        label={
+          <Typography variant="caption" component="div">
+            {onlyInteractive
+              ? `display only interactive cells`
+              : `display all cells`}
+          </Typography>
+        }
+      />
+    </FormGroup>
+  );
+
+  if (!cityIOdata.GEOGRIDDATA) return null;
+
+  // filling: the chart takes all the room the switch below it leaves
+  if (fill) {
+    return (
+      <Box
+        sx={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <Box sx={{ position: "relative", flex: 1, minHeight: 0 }}>
+          <Doughnut data={chartData} options={chartOptions} />
+        </Box>
+        {areaSwitch}
+      </Box>
+    );
+  }
+
   return (
     <>
-      {cityIOdata.GEOGRIDDATA && (
-        <>
-          <Doughnut data={chartData} options={options} />
-          <FormGroup>
-            <FormControlLabel
-              control={<Switch onChange={handleSwitchChange} size="small" />}
-              label={
-                <Typography variant="caption" component="div">
-                  {onlyInteractive
-                    ? `display only interactive cells`
-                    : `display all cells`}
-                </Typography>
-              }
-            />
-          </FormGroup>
-        </>
-      )}
+      <Doughnut data={chartData} options={chartOptions} />
+      {areaSwitch}
     </>
   );
 }

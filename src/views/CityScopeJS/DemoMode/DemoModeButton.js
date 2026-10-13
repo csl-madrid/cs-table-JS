@@ -8,6 +8,11 @@ const SIZE = 46;
 // the button under it
 const LEFT = GAP + (62 - SIZE) / 2;
 
+// where the layout button of the demo view sits: right next to this one
+export const DEMO_BUTTON_NEXT_LEFT = LEFT + SIZE + 8;
+export const DEMO_BUTTON_SIZE = SIZE;
+export const DEMO_BUTTON_BOTTOM = GAP;
+
 // space the left rail leaves free at the bottom so the button never covers it
 export const DEMO_BUTTON_CLEARANCE = GAP * 2 + SIZE;
 

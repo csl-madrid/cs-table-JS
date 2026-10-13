@@ -231,10 +231,9 @@ export default function GridLayer({
       }
     },
 
+    // the info box (and the brush) only exist while a cell is under the cursor
     onHover: (e) => {
-      if (e.object) {
-        setHoveredObj(e);
-      }
+      setHoveredObj(e.object ? e : null);
     },
 
     onDragEnd: () => {

@@ -11,6 +11,7 @@ import {
 } from "chart.js";
 import { Bar } from "react-chartjs-2";
 import { numberToColorHsl } from "../../../../utils/utils";
+import ChartFrame, { useChartOptions } from "../ChartFrame";
 
 ChartJS.register(
   CategoryScale,
@@ -95,9 +96,11 @@ export const noData = {
   ],
 };
 
-export default function BarChart() {
+// `fill`: take the whole box the chart is in (see ChartFrame)
+export default function BarChart({ fill = false }) {
   const cityIOdata = useSelector((state) => state.cityIOdataState.cityIOdata);
   const [barChartData, setBarChartData] = useState();
+  const chartOptions = useChartOptions(options, fill);
 
   useEffect(() => {
     if (!cityIOdata.indicators) {
@@ -153,7 +156,12 @@ export default function BarChart() {
   return (
     <>
       {barChartData && (
-        <Bar options={options} data={barChartData ? barChartData : noData} />
+        <ChartFrame fill={fill}>
+          <Bar
+            options={chartOptions}
+            data={barChartData ? barChartData : noData}
+          />
+        </ChartFrame>
       )}
     </>
   );

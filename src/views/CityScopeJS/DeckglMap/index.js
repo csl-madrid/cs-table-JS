@@ -573,6 +573,8 @@ export default function DeckGLMap({ demoMode = false, mapSize }) {
         }}
         onKeyUp={() => setKeyDownState(null)}
         onMouseMove={(e) => setMousePos(e.nativeEvent)}
+        // leaving the map (onto a panel, a button...) sends no hover event
+        onMouseLeave={() => setHoveredObj(null)}
         onMouseUp={() => setMouseDown(false)}
         onMouseDown={() => setMouseDown(true)}
       >

@@ -10,6 +10,7 @@ import {
 import { Radar } from "react-chartjs-2";
 import { useSelector } from "react-redux";
 import { useState, useEffect } from "react";
+import ChartFrame, { useChartOptions } from "../ChartFrame";
 
 const options = {
   plugins: {
@@ -130,7 +131,8 @@ const splitLabel = (name, maxLineLength = 14) => {
   return lines;
 };
 
-export default function RadarChart() {
+// `fill`: take the whole box the chart is in (see ChartFrame)
+export default function RadarChart({ fill = false }) {
   ChartJS.register(
     RadialLinearScale,
     PointElement,
@@ -142,6 +144,10 @@ export default function RadarChart() {
 
   const cityIOdata = useSelector((state) => state.cityIOdataState.cityIOdata);
   const [radarData, setRadarData] = useState();
+  const chartOptions = useChartOptions(
+    cityIOdata.indicators ? options : optionsNoData,
+    fill
+  );
 
   const createRadarData = (indicators) => {
     let radarData = {
@@ -200,10 +206,9 @@ export default function RadarChart() {
   return (
     <>
       {radarData && (
-        <Radar
-          data={radarData}
-          options={cityIOdata.indicators ? options : optionsNoData}
-        />
+        <ChartFrame fill={fill}>
+          <Radar data={radarData} options={chartOptions} />
+        </ChartFrame>
       )}
     </>
   );
