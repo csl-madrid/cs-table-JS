@@ -53,19 +53,30 @@ export const demoLayoutSlice = createSlice({
       state.modules[slot] = moduleId;
     },
 
-    // Changes the whole layout. Modules keep their place by box order; if the
-    // new layout has fewer boxes, the ones left over take the empty boxes that
+    // Changes the whole layout. A layout that brings its own modules puts them
+    // in its boxes. Otherwise modules keep their place by box order; if the new
+    // layout has fewer boxes, the ones left over take the empty boxes that
     // remain before being dropped, and if it has more, the new ones are empty
     setPreset: (state, action) => {
       const preset = getPreset(action.payload.presetId);
-      if (!preset || preset.id === state.presetId) return;
+      if (!preset) return;
+      if (preset.id === state.presetId && !preset.modules) return;
       const { tree, nextId } = assignIds(preset.tree, state.nextId);
       const count = leafIds(tree).length;
-      const inOrder = leafIds(current(state.tree)).map((id) => state.modules[id]);
-      const kept = inOrder.slice(0, count);
-      const leftOver = inOrder.slice(count).filter((m) => m !== EMPTY_MODULE_ID);
-      for (let i = 0; i < kept.length && leftOver.length; i++) {
-        if (kept[i] === EMPTY_MODULE_ID) kept[i] = leftOver.shift();
+      let kept;
+      if (preset.modules) {
+        kept = preset.modules.slice(0, count);
+      } else {
+        const inOrder = leafIds(current(state.tree)).map(
+          (id) => state.modules[id]
+        );
+        kept = inOrder.slice(0, count);
+        const leftOver = inOrder
+          .slice(count)
+          .filter((m) => m !== EMPTY_MODULE_ID);
+        for (let i = 0; i < kept.length && leftOver.length; i++) {
+          if (kept[i] === EMPTY_MODULE_ID) kept[i] = leftOver.shift();
+        }
       }
       while (kept.length < count) kept.push(EMPTY_MODULE_ID);
       state.presetId = preset.id;

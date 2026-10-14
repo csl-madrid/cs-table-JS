@@ -19,12 +19,26 @@ export const EMPTY_MODULE_ID = "empty";
 /**
  * The layouts the demo view can start from, described with the builders of
  * layoutTree.js. The order of the boxes (left to right, top to bottom as they
- * are written) is the order modules are kept in when switching layouts. To add
- * a layout, add an entry here.
+ * are written) is the order modules are kept in when switching layouts. A
+ * layout can also bring its own `modules` (module ids in that same order): then
+ * choosing it puts them in its boxes, instead of keeping what was on screen.
+ * To add a layout, add an entry here.
  */
 export const DEMO_PRESETS = [
-  { id: "focus", name: "One box", tree: leaf() },
-  { id: "two", name: "Two columns", tree: col(0.5, leaf(), leaf()) },
+  {
+    id: "layout1",
+    name: "Layout 1",
+    tree: col(DEMO_METRICS_SHARE, leaf(), row(0.5, leaf(), leaf())),
+    modules: ["radar", "map", "abm"],
+  },
+  {
+    // two columns: the map on the left, the radar chart and the bar chart
+    // (the metrics that matter most here) sharing the bigger right column
+    id: "layout2",
+    name: "Layout 2",
+    tree: col(0.4, leaf(), row(0.5, leaf(), leaf())),
+    modules: ["map", "radar", "bar"],
+  },
   { id: "side", name: "Main and side", tree: col(0.68, leaf(), leaf()) },
   {
     id: "three",

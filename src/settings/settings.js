@@ -1,6 +1,12 @@
 // import { cityIOModeBool } from "../utils/utils";
 import queryString from "query-string";
 
+// The CityIO server used is the MIT one (or localhost:8080 with ?cityio_local).
+// To use the lab's server instead (192.168.0.50), comment the `serverLocation`
+// above the marked line and uncomment the one under it, in both functions. The
+// lab's server is reached over plain http/ws, so the app then has to be opened
+// over http (a https page can't connect to it) and from the lab's network
+
 const getServerLocation = () => {
   const location = window.location;
   const parsed = queryString.parse(location.search);
@@ -9,6 +15,8 @@ const getServerLocation = () => {
     "cityio_local" in parsed
       ? "http://localhost:8080/api/"
       : "https://cityio.media.mit.edu/cityio/api/";
+  // --- lab server (uncomment this one, and comment the one above) ---
+  // const serverLocation = "http://192.168.0.50:8080/api/";
   console.log("cityIO server location: ", serverLocation);
   return serverLocation;
 };
@@ -21,6 +29,8 @@ const getWebsocketServerLocation = () => {
     "cityio_local" in parsed
       ? "ws://localhost:8080/interface"
       : "wss://cityio.media.mit.edu/cityio/interface";
+  // --- lab server (uncomment this one, and comment the one above) ---
+  // const serverLocation = "ws://192.168.0.50:8080/interface";
   console.log("cityIO websocket server location: ", serverLocation);
   return serverLocation;
 };
