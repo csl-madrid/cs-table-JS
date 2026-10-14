@@ -1,11 +1,12 @@
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
+import VoiceAssistant from "./VoiceAssistant/VoiceAssistant";
 
 const assistant = {
   id: "assistant",
   title: "Assistant",
-  subheader: "Ask about the project",
+  subheader: "Voice control",
   icon: <SmartToyOutlinedIcon />,
-  comingSoon: true,
+  component: VoiceAssistant,
 };
 
 export default assistant;
