@@ -24,32 +24,58 @@ export default function VoiceAssistant() {
   const timerRef = useRef(null);
 
   useEffect(() => {
-    const ws = new WebSocket('ws://localhost:8765');
+    let ws = null;
+    let reconnectTimeout = null;
+    let isUnmounted = false;
 
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === 'state') {
-        setState(data.state);
-        setText(data.text || '');
+    const connectWebSocket = () => {
+      if (isUnmounted) return;
 
-        if (timerRef.current) {
-          clearTimeout(timerRef.current);
+      ws = new WebSocket('ws://localhost:8765');
+
+      ws.onopen = () => {
+        console.log('[React] Conectado con éxito al backend de Python.');
+      };
+
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'state') {
+          setState(data.state);
+          setText(data.text || '');
+
+          if (timerRef.current) {
+            clearTimeout(timerRef.current);
+          }
+
+          if (data.state === 'success' || data.state === 'error') {
+            timerRef.current = setTimeout(() => {
+              setState('idle');
+              setText('');
+            }, 4000);
+          }
+        } else if (data.type === 'volume') {
+          setRms(data.rms);
         }
+      };
 
-        if (data.state === 'success' || data.state === 'error') {
-          timerRef.current = setTimeout(() => {
-            setState('idle');
-            setText('');
-          }, 4000);
+      ws.onerror = () => {
+        // Se maneja en onclose
+      };
+
+      ws.onclose = () => {
+        if (!isUnmounted) {
+          console.log('[React] Conexión con Python perdida. Reintentando en 2 segundos...');
+          reconnectTimeout = setTimeout(connectWebSocket, 2000);
         }
-      } else if (data.type === 'volume') {
-        setRms(data.rms);
-      }
+      };
     };
 
-    ws.onerror = () => console.log('Esperando conexión con el script de Python...');
+    connectWebSocket();
+
     return () => {
-      ws.close();
+      isUnmounted = true;
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (ws) ws.close();
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, []);
@@ -76,7 +102,7 @@ export default function VoiceAssistant() {
   const scale = isActive ? 1 + Math.max(0, (rms - 40) / 100) : 1;
   const isProcessing = state === 'processing';
 
-  return (
+ return (
     <>
       <style>{globalStyles}</style>
       {/* fills the box of the demo view it is shown in; the box already has its
