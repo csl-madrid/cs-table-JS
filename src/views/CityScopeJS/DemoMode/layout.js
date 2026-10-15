@@ -37,7 +37,7 @@ export const DEMO_PRESETS = [
     id: "layout2",
     name: "Layout 2",
     tree: col(0.4, leaf(), row(0.5, leaf(), leaf())),
-    modules: ["map", "radar", "bar"],
+    modules: ["radar", "map", "assistant"],
   },
   { id: "side", name: "Main and side", tree: col(0.68, leaf(), leaf()) },
   {
