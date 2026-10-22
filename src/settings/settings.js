@@ -11,12 +11,12 @@ const getServerLocation = () => {
   const location = window.location;
   const parsed = queryString.parse(location.search);
 
-  const serverLocation =
-    "cityio_local" in parsed
-      ? "http://localhost:8080/api/"
-      : "https://cityio.media.mit.edu/cityio/api/";
+  //const serverLocation =
+  //  "cityio_local" in parsed
+   //   ? "http://localhost:8080/api/"
+   //   : "https://cityio.media.mit.edu/cityio/api/";
   // --- lab server (uncomment this one, and comment the one above) ---
-  // const serverLocation = "http://192.168.0.50:8080/api/";
+   const serverLocation = "http://192.168.0.50:8080/api/";
   console.log("cityIO server location: ", serverLocation);
   return serverLocation;
 };
@@ -25,12 +25,12 @@ const getWebsocketServerLocation = () => {
   const location = window.location;
   const parsed = queryString.parse(location.search);
 
-  const serverLocation =
-    "cityio_local" in parsed
-      ? "ws://localhost:8080/interface"
-      : "wss://cityio.media.mit.edu/cityio/interface";
+  //const serverLocation =
+   // "cityio_local" in parsed
+    //  ? "ws://localhost:8080/interface"
+    //  : "wss://cityio.media.mit.edu/cityio/interface";
   // --- lab server (uncomment this one, and comment the one above) ---
-  // const serverLocation = "ws://192.168.0.50:8080/interface";
+   const serverLocation = "ws://192.168.0.50:8080/interface";
   console.log("cityIO websocket server location: ", serverLocation);
   return serverLocation;
 };
