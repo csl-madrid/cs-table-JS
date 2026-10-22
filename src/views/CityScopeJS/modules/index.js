@@ -4,7 +4,12 @@ import radar from "./radar";
 import bar from "./bar";
 import abm from "./abm";
 import sentiment from "./sentiment";
-import assistant from "./assistant";
+import abmValues from "./abmValues";
+import abmActivities from "./abmActivities";
+import abmModes from "./abmModes";
+import abmDistance from "./abmDistance";
+import abmDuration from "./abmDuration";
+import abmModalSplit from "./abmModalSplit";
 
 /**
  * Everything the demo view can show. To add a module: create a file in this
@@ -22,6 +27,19 @@ import assistant from "./assistant";
  *   rendered inside it; its component then gets `demoMode` and `mapSize`
  * @property {boolean} [comingSoon] listed, but nothing to show yet
  */
-export const MODULES = [map, landuse, radar, bar, abm, sentiment, assistant];
+export const MODULES = [
+  map,
+  landuse,
+  radar,
+  bar,
+  abm,
+  sentiment,
+  abmValues,
+  abmActivities,
+  abmModes,
+  abmDistance,
+  abmDuration,
+  abmModalSplit,
+];
 
 export const getModule = (id) => MODULES.find((m) => m.id === id);

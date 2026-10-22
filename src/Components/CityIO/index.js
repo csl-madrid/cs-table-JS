@@ -8,6 +8,8 @@ import {
 import { useSelector, useDispatch } from "react-redux";
 import useWebSocket, { ReadyState } from "react-use-websocket"
 import LoadingProgressBar from "../LoadingProgressBar";
+import { handleUiCommand } from "../../utils/uiCommands";
+import { receiveAbmMetrics } from "../../redux/reducers/abmMetricsSlice";
 
 const CityIO = (props) => {
 
@@ -113,6 +115,12 @@ const CityIO = (props) => {
       dispatch(toggleCityIOisDone(true));  
     }
 
+    // If we receive a UI_COMMAND, someone (the voice assistant...) is asking
+    //  the interface itself to do something, like changing its layout
+    else if (messageType === 'UI_COMMAND'){
+      handleUiCommand(lastJsonMessage.content, dispatch);
+    }
+
     // If we receive a INDICATOR (MODULE) message, the UI needs to load
     //  the module data
     // WIP
@@ -162,6 +170,11 @@ const CityIO = (props) => {
 
         m = {...m, "layers":newLayers };
         }
+
+      // the ABM simulation also sends its metrics (see abmMetricsSlice)
+      if('abmMetrics' in lastJsonMessage.content.moduleData){
+        dispatch(receiveAbmMetrics(lastJsonMessage.content.moduleData.abmMetrics));
+      }
 
       dispatch(updateCityIOdata(m));
       verbose &&

@@ -28,16 +28,27 @@ export const DEMO_PRESETS = [
   {
     id: "layout1",
     name: "Layout 1",
-    tree: col(DEMO_METRICS_SHARE, leaf(), row(0.5, leaf(), leaf())),
-    modules: ["radar", "map", "abm"],
+    tree: col(DEMO_METRICS_SHARE, leaf(), leaf()),
+    modules: ["radar", "map"],
   },
   {
-    // two columns: the map on the left, the radar chart and the bar chart
-    // (the metrics that matter most here) sharing the bigger right column
+    // the ABM simulation: three boxes over three, the numbers and one chart
+    // for each of the other metrics (see VisContainer/ABM)
     id: "layout2",
     name: "Layout 2",
-    tree: col(0.4, leaf(), row(0.5, leaf(), leaf())),
-    modules: ["radar", "map", "assistant"],
+    tree: row(
+      0.5,
+      col(1 / 3, leaf(), col(0.5, leaf(), leaf())),
+      col(1 / 3, leaf(), col(0.5, leaf(), leaf()))
+    ),
+    modules: [
+      "abmValues",
+      "abmActivities",
+      "abmModes",
+      "abmDistance",
+      "abmDuration",
+      "abmModalSplit",
+    ],
   },
   { id: "side", name: "Main and side", tree: col(0.68, leaf(), leaf()) },
   {
@@ -63,8 +74,8 @@ export const DEMO_PRESETS = [
 
 // the layout, and what its boxes show, until someone changes them (module ids
 // are the ones of ../modules, in the order of the layout's boxes)
-export const DEFAULT_PRESET_ID = "three";
-export const DEFAULT_DEMO_MODULES = ["landuse", "map", EMPTY_MODULE_ID];
+export const DEFAULT_PRESET_ID = "layout1";
+export const DEFAULT_DEMO_MODULES = ["radar", "map"];
 
 export const getPreset = (id) => DEMO_PRESETS.find((p) => p.id === id);
 

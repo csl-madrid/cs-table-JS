@@ -31,7 +31,7 @@ export default function VoiceAssistant() {
     const connectWebSocket = () => {
       if (isUnmounted) return;
 
-      ws = new WebSocket('ws://localhost:8765');
+      ws = new WebSocket('ws://192.168.0.103:8765');
 
       ws.onopen = () => {
         console.log('[React] Conectado con éxito al backend de Python.');

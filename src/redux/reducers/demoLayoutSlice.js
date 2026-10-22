@@ -26,18 +26,28 @@ const initial = assignIds(getPreset(DEFAULT_PRESET_ID).tree);
 // each of its boxes shows. Everything that changes it (the menus and dividers
 // of the demo view today, anything else tomorrow) goes through these actions,
 // so there is a single place that decides how the layout moves.
+// - demoMode: whether the demo view is on (instead of the regular one)
 // - presetId: the layout chosen from the list, or null once it was edited
 // - modules[boxId]: the id of the module box `boxId` shows
 // - nextId: where the ids of new boxes and splits continue from
 export const demoLayoutSlice = createSlice({
   name: "demoLayoutState",
   initialState: {
+    demoMode: false,
     presetId: DEFAULT_PRESET_ID,
     tree: initial.tree,
     modules: modulesByBox(initial.tree, DEFAULT_DEMO_MODULES),
     nextId: initial.nextId,
   },
   reducers: {
+    // Turns the demo view on or off
+    setDemoMode: (state, action) => {
+      state.demoMode = Boolean(action.payload);
+    },
+    toggleDemoMode: (state) => {
+      state.demoMode = !state.demoMode;
+    },
+
     // Shows `moduleId` in box `slot`. A module is on screen once at most, so if
     // it is already in another box the two boxes swap contents
     setSlotModule: (state, action) => {
@@ -120,6 +130,8 @@ export const demoLayoutSlice = createSlice({
 });
 
 export const {
+  setDemoMode,
+  toggleDemoMode,
   setSlotModule,
   setPreset,
   setSplitRatio,
